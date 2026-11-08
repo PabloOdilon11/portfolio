@@ -514,7 +514,7 @@ export { Reflector };
 <h2 id="settings-title">Jogo pausado</h2>
 <form>
 <label>Horário <select id="period"><option value="day">Dia</option><option value="sunset">Pôr do sol</option><option value="night" selected>Noite</option></select></label>
-<label>Gráficos <select id="graphics"><option value="low">Baixa</option><option value="medium">Média</option><option value="high">Alta</option></select></label>
+<label>Gráficos <select id="graphics"><option value="auto">Automática</option><option value="low">Baixa</option><option value="medium">Média</option><option value="high">Alta</option></select></label>
 <label>Câmera do carro <select id="camera-setting"><option value="chase">Externa</option><option value="inside">Cabine</option><option value="body">Carroceria</option><option value="vista">Panorâmica</option></select></label>
 <label>Volume dos efeitos <input id="effects-volume" type="range" min="0" max="1" step=".05" value=".25"></label>
 <label>Volume da música <input id="music-volume" type="range" min="0" max="1" step=".05" value="0"></label>
@@ -1959,7 +1959,8 @@ for(const state of Object.values(lighting)){
   state.top=new T.Color(...state.top);state.horizon=new T.Color(...state.horizon);
   state.light=new T.Color(state.light);state.fill=new T.Color(state.fill);
 }
-let period='night',quality=coarse?'low':'medium',reduced=prefersLess,driveView='chase',night=0;
+let period='night',quality=coarse?'low':'medium',graphicsMode='auto',reduced=prefersLess,driveView='chase',night=0;
+let frameBudget=0,frameSamples=0,shadowFrame=0;
 let cinemaIntensity='full',presentation=null,lensFade=0;
 const cameraModes=['chase','inside','body','vista'];
 const introLength=13.2;
@@ -2063,26 +2064,46 @@ function cameraSetting(value){
 }
 
 let intro=reduced?null:0,uiPaused=false,missionEnabled=true;
-const streetLamps=[];
+const lightSources=[];
 const streetBulb=emit(0xffd99d,.6);
 const pavementGlow=new T.MeshBasicMaterial({color:0xffbf66,transparent:true,opacity:0,depthWrite:false,blending:T.AdditiveBlending});
 const glowDisk=new T.CircleGeometry(1,24);
 for(const [x,z] of [[-6,-16],[6,8],[27,-16],[40,-30],[-40,-30],[5,-53],[40,-3],[-19,5]]){
   box(scene,metal,x,1.65,z,.09,3.3,.09);
   box(scene,streetBulb,x,3.32,z,.35,.08,.24,false);
-  const lamp=new T.PointLight(0xffcf83,0,10,1.6);lamp.position.set(x,3.11,z);scene.add(lamp);streetLamps.push(lamp);
+  lightSources.push({position:new T.Vector3(x,3.11,z),color:new T.Color(0xffcf83),intensity:28});
   const pool=mesh(scene,glowDisk,pavementGlow,x,.048,z,1.95,1.95,1,false);
   pool.rotation.x=-Math.PI/2;
 }
-const frontageLights=districts.map(d=>{
-  const lamp=new T.PointLight(new T.Color(d.color),0,10,1.4);
-  lamp.position.copy(streetPoint(d,.75,2.6));scene.add(lamp);
-  return lamp;
+for(const district of districts)lightSources.push({
+  position:streetPoint(district,.75,2.6),color:new T.Color(district.color),intensity:20
 });
-const playerBeams=[-1,1].map(side=>{
-  const lamp=new T.SpotLight(0xffebcb,0,24,.32,.62,1.3);
-  lamp.userData.side=side;scene.add(lamp,lamp.target);return lamp;
+const localLights=Array.from({length:3},()=>{
+  const lamp=new T.PointLight(0xffffff,0,11,1.55);scene.add(lamp);return lamp;
 });
+const playerBeam=new T.SpotLight(0xffebcb,0,24,.38,.62,1.3);
+scene.add(playerBeam,playerBeam.target);
+function placeNightLights(){
+  // Keep the shader's light count stable as the camera moves between districts.
+  const count=quality==='high'?3:quality==='medium'?2:1;
+  const nearby=lightSources
+    .map(source=>({source,distance:source.position.distanceToSquared(camera.position)}))
+    .filter(entry=>entry.distance<22**2).sort((a,b)=>a.distance-b.distance);
+  for(const [index,lamp] of localLights.entries()){
+    const item=index<count&&!inLab?nearby[index]:null;
+    lamp.visible=index<count;
+    if(item){
+      lamp.position.copy(item.source.position);
+      lamp.color.copy(item.source.color);
+      lamp.intensity=item.source.intensity*night;
+    }else lamp.intensity=0;
+  }
+  playerBeam.intensity=!inLab&&(mode==='drive'||mode==='walk')?night*30:0;
+  if(playerBeam.intensity>0){
+    playerBeam.position.copy(local(car().root,0,.72,-2));
+    playerBeam.target.position.copy(local(car().root,0,.1,-15));
+  }
+}
 function updateLight(dt){
   const state=lighting[period],mix=1-Math.exp(-dt*1.55),u=sky.material.uniforms;
   u.topColor.value.lerp(state.top,mix);u.horizonColor.value.lerp(state.horizon,mix);
@@ -2094,22 +2115,7 @@ function updateLight(dt){
   night=T.MathUtils.lerp(night,state.night,mix);
   streetBulb.emissiveIntensity=.45+night*3.8;
   pavementGlow.opacity=night*.12;
-  const cameraStreet=!inLab;
-  for(const lamp of streetLamps){
-    lamp.visible=cameraStreet&&quality!=='low'&&night>.06&&lamp.position.distanceToSquared(camera.position)<22**2;
-    lamp.intensity=night*28;
-  }
-  for(const lamp of frontageLights){
-    lamp.visible=cameraStreet&&quality!=='low'&&night>.06&&lamp.position.distanceToSquared(camera.position)<22**2;
-    lamp.intensity=night*20;
-  }
-  for(const lamp of playerBeams){
-    lamp.visible=cameraStreet&&night>.045&&(mode==='drive'||mode==='walk');
-    lamp.intensity=night*32;
-    const side=lamp.userData.side;
-    lamp.position.copy(local(car().root,side*.59,.65,-2));
-    lamp.target.position.copy(local(car().root,side*1.02,.1,-15));
-  }
+  placeNightLights();
 }
 const trafficLoops=[
   [[-32,-44],[-2,-44],[-2,-18],[-32,-18]],
@@ -2282,9 +2288,11 @@ function updateAudio(){
   for(const {tone,ratio} of chord)tone.frequency.setTargetAtTime(note*ratio,now,.76);
 }
 function applyQuality(){
-  const levels={low:.85,medium:1.25,high:1.8};
+  const levels={low:.72,medium:.95,high:1.55};
   renderer.setPixelRatio(Math.min(devicePixelRatio,levels[quality]));
-  renderer.shadowMap.enabled=quality!=='low';
+  renderer.shadowMap.enabled=quality==='high';
+  renderer.shadowMap.autoUpdate=false;
+  renderer.shadowMap.needsUpdate=quality==='high';
   const size=quality==='high'?2048:1024;
   if(sun.shadow.mapSize.x!==size){
     sun.shadow.mapSize.set(size,size);
@@ -2311,7 +2319,11 @@ el('intro-replay').onclick=()=>{
   stopPresentation();intro=0;el('garage').hidden=true;el('intro-skip').hidden=false;
 };
 el('period').onchange=e=>{period=e.target.value};
-el('graphics').value=quality;el('graphics').onchange=e=>{quality=e.target.value;applyQuality()};
+el('graphics').value=graphicsMode;
+el('graphics').onchange=e=>{
+  graphicsMode=e.target.value;quality=graphicsMode==='auto'?(coarse?'low':'medium'):graphicsMode;
+  frameBudget=0;frameSamples=0;applyQuality();
+};
 el('camera-setting').onchange=e=>cameraSetting(e.target.value);
 el('less-motion').checked=reduced;
 el('less-motion').onchange=e=>{reduced=e.target.checked;if(reduced)skipScene()};
@@ -2468,7 +2480,14 @@ if(intro!==null){el('garage').hidden=true;el('intro-skip').hidden=false}
 camera.position.set(-2,3,13);
 renderer.setAnimationLoop(time=>{
   const dt=last?Math.min(Math.max((time-last)/1000,0),.12):1/60;last=time;
-  if(uiPaused)return;
+  if(uiPaused||document.hidden){frameBudget=0;frameSamples=0;return}
+  if(graphicsMode==='auto'&&quality==='medium'){
+    frameBudget+=dt;frameSamples++;
+    if(frameBudget>=1.25){
+      if(frameSamples/frameBudget<42){quality='low';applyQuality()}
+      frameBudget=0;frameSamples=0;
+    }
+  }
   clock+=dt;
   if(intro!==null){intro+=dt;if(intro>=introLength)endIntro()}
   if(presentation){
@@ -2489,7 +2508,8 @@ renderer.setAnimationLoop(time=>{
   const substeps=Math.max(1,Math.ceil(dt/.023));
   for(let step=0;step<substeps;step++){updateCity(dt/substeps);update(dt/substeps)}
   view(dt);updateLight(dt);display();showMission();cinemaHud();updateAudio();
-  showroomMirror.visible=quality!=='low'&&!inLab&&(mode==='garage'&&intro===null||camera.position.distanceToSquared(garageLight.position)<225);
+  showroomMirror.visible=quality==='high'&&!inLab&&mode==='garage'&&intro===null;
+  if(quality==='high'&&shadowFrame++%4===0)renderer.shadowMap.needsUpdate=true;
   renderer.render(inLab?activeInterior.scene:scene,camera);
 });
 }
