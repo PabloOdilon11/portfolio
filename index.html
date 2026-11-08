@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Pablo Agra | Garagem Neon</title>
 <meta name="zeca-chat-mode" content="disabled">
 <style>
@@ -94,6 +94,39 @@ button[aria-pressed=true],.primary{background:#a1efff;color:#0c232b}
 #shot-detail{margin:.45em 0 0;font-size:clamp(13px,2vw,19px);color:#e2f6fa;max-width:46ch}
 #intro-skip{z-index:4}#intro-replay{margin-left:.35em}
 body[data-quality="low"] .glass{backdrop-filter:none;background:#0b171ef5}
+
+#map-toggle,#touch{display:none}
+#stick{display:grid;place-items:center;width:clamp(88px,24vw,112px);height:clamp(88px,24vw,112px);border-radius:50%;background:#0b1822db;border:1px solid #91eaff85;touch-action:none;pointer-events:auto;user-select:none}
+#stick-knob{width:42%;height:42%;background:#8bdce9;border:1px solid #d3faff;border-radius:50%;pointer-events:none;transform:translate(var(--stick-x,0px),var(--stick-y,0px))}
+#pedals{display:grid;grid-template-columns:repeat(2,minmax(58px,1fr));gap:6px}
+#touch:not([data-mode="drive"]) #pedals{display:none}
+#pedals button[data-key="KeyW"]{grid-row:span 2;background:#a1efff;color:#11282e}
+@media(any-pointer:coarse),(max-width:700px){
+ #help{display:none}
+ #overlay{padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
+ #touch:not([hidden]){display:flex;position:fixed;z-index:2;left:max(14px,env(safe-area-inset-left));right:max(14px,env(safe-area-inset-right));bottom:calc(max(12px,env(safe-area-inset-bottom)) + 38px);align-items:flex-end;justify-content:space-between;max-width:none;pointer-events:none}
+ #touch-right{display:flex;flex-direction:column;gap:7px;align-items:flex-end}
+ #interaction{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 145px);z-index:3;max-width:88vw}
+ #interaction button{min-height:46px}
+ #tools{top:auto;left:max(12px,env(safe-area-inset-left));bottom:max(10px,env(safe-area-inset-bottom));transform:none}
+ #tools button{font-size:11px;min-height:34px}
+ #map-toggle{display:block;position:fixed;right:max(12px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 37px);z-index:3;pointer-events:auto;min-height:38px}
+ #nav:not([data-expanded="true"]){display:none}
+ #nav{top:calc(max(12px,env(safe-area-inset-top)) + 79px);width:min(190px,50vw);z-index:3}
+ #status{font-size:11px;max-width:54%}
+ #objective{top:calc(max(12px,env(safe-area-inset-top)) + 37px);max-width:48vw;font-size:11px}
+ #objective p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+ #destination{position:fixed;z-index:3;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 45px);left:12px;right:12px;width:auto;max-width:500px;max-height:50vh}
+ #project-replay{top:calc(max(12px,env(safe-area-inset-top)) + 40px)}
+ #garage{margin-bottom:43px}
+ #intro-skip,#cinema-skip{bottom:calc(max(10px,env(safe-area-inset-bottom)) + 38px)}
+}
+@media(any-pointer:coarse) and (max-height:520px){
+ #stick{width:80px;height:80px}
+ #touch:not([hidden]){bottom:max(10px,env(safe-area-inset-bottom))}
+ #tools{left:50%;transform:translateX(-50%)}
+ #interaction{bottom:65px}
+}
 </style>
 </head>
 <body>
@@ -124,15 +157,23 @@ body[data-quality="low"] .glass{backdrop-filter:none;background:#0b171ef5}
 <button type="button" id="project-close">Fechar painel</button>
 </section>
 <div id="interaction" hidden><button class="primary" id="interact" type="button"></button></div>
+<button type="button" id="map-toggle" aria-controls="nav" aria-expanded="false" hidden>Mapa</button>
 <aside class="glass" id="nav" hidden aria-label="Navegação do distrito">
 <label for="route-target">Destino</label><select id="route-target"></select>
 <canvas id="map" width="320" height="288" aria-hidden="true"></canvas>
 <small id="route-distance"></small>
 </aside>
 <div id="help">WASD ou setas · E entra/sai · C muda a câmera ou recentraliza a pé · Arraste para olhar · R volta à garagem</div>
-<div id="touch" aria-label="Controles de direção">
-<button data-key="KeyA" aria-label="Esquerda">◀</button><button data-key="KeyW" aria-label="Frente">▲</button><button data-key="KeyD" aria-label="Direita">▶</button>
-<button data-key="KeyS" aria-label="Ré ou freio">▼</button><button data-action="KeyE" aria-label="Entrar ou sair">E</button><button data-action="KeyC" aria-label="Trocar câmera">C</button><button data-action="KeyR" aria-label="Voltar à garagem">R</button>
+<div id="touch" aria-label="Controles de toque" hidden>
+  <div id="stick" aria-label="Analógico de movimento"><span id="stick-knob"></span></div>
+  <div id="touch-right">
+    <button data-action="KeyC" type="button">Câmera</button>
+    <div id="pedals">
+      <button data-key="KeyW" type="button">Acelerar</button>
+      <button data-key="Space" type="button">Freio</button>
+      <button data-key="KeyS" type="button">Ré</button>
+    </div>
+  </div>
 </div>
 </div>
 </div>
@@ -522,7 +563,7 @@ export { Reflector };
 <label>Intensidade cinematográfica <select id="cinema-intensity"><option value="off">Desligada</option><option value="soft">Suave</option><option value="full" selected>Completa</option></select></label>
 <label>Reduzir movimentos <input id="less-motion" type="checkbox"></label>
 <label>Mostrar missões <input id="mission-toggle" type="checkbox" checked></label>
-<button type="button" id="resume">Continuar</button>
+<button type="button" id="resume">Continuar</button> <button type="button" id="mobile-garage">Voltar à garagem</button>
 </form></dialog>
 <dialog id="direct" aria-labelledby="direct-title">
 <h2 id="direct-title">Pablo Agra · Projetos e currículo</h2>
@@ -1356,7 +1397,7 @@ let destinationIndex=0, lastMap=-1;
 districts.forEach(({name},index)=>{
   const option=document.createElement('option');option.value=index;option.textContent=name;targetSelector.append(option);
 });
-targetSelector.onchange=()=>{destinationIndex=Number(targetSelector.value);lastMap=-1;targetSelector.blur()};
+targetSelector.onchange=()=>{destinationIndex=Number(targetSelector.value);lastMap=-1;targetSelector.blur();if(coarse||innerWidth<=700)showMap(false)};
 const avenueX=[-34,0,34], streetZ=[-46,-16,8,34];
 const junctions=streetZ.flatMap(z=>avenueX.map(x=>({x,z})));
 const edges=[];
@@ -1695,6 +1736,35 @@ for(const button of document.querySelectorAll('[data-key]')){
   button.onlostpointercapture=button.onpointerup=button.onpointercancel=event=>touchKeys.delete(event.pointerId);
 }
 for(const button of document.querySelectorAll('[data-action]'))button.onclick=()=>action(button.dataset.action);
+const touchPanel=el('touch'),stick=el('stick'),stickKnob=el('stick-knob'),mapToggle=el('map-toggle');
+let stickPointer=null,stickX=0,stickY=0,mapExpanded=false;
+function releaseStick(){
+  stickPointer=null;stickX=0;stickY=0;
+  stickKnob.style.setProperty?.('--stick-x','0px');
+  stickKnob.style.setProperty?.('--stick-y','0px');
+}
+function moveStick(event){
+  const rect=stick.getBoundingClientRect(),radius=rect.width*.33;
+  if(!radius)return;
+  const x=(event.clientX-rect.left-rect.width*.5)/radius,y=(event.clientY-rect.top-rect.height*.5)/radius;
+  const length=Math.hypot(x,y),knob=Math.max(1,length);
+  const strength=T.MathUtils.clamp((length-.13)/.87,0,1);
+  stickX=length?x/length*strength:0;stickY=length?y/length*strength:0;
+  stickKnob.style.setProperty('--stick-x',x/knob*radius+'px');
+  stickKnob.style.setProperty('--stick-y',y/knob*radius+'px');
+}
+stick.onpointerdown=event=>{
+  if(stickPointer!==null||touchPanel.hidden||uiPaused)return;
+  event.preventDefault();stickPointer=event.pointerId;stick.setPointerCapture(event.pointerId);moveStick(event);
+  soundSetup();
+};
+stick.onpointermove=event=>{if(event.pointerId===stickPointer)moveStick(event)};
+stick.onlostpointercapture=stick.onpointerup=stick.onpointercancel=event=>{if(event.pointerId===stickPointer)releaseStick()};
+function showMap(open){
+  mapExpanded=open;el('nav').dataset.expanded=String(open);
+  mapToggle.setAttribute('aria-expanded',String(open));mapToggle.textContent=open?'Fechar mapa':'Mapa';
+}
+mapToggle.onclick=()=>showMap(!mapExpanded);
 const screen=renderer.domElement;
 screen.onpointerdown=event=>{
   if(uiPaused||chatOpen||cinematic||intro!==null||(mode!=='garage'&&mode!=='walk'))return;
@@ -1717,7 +1787,7 @@ screen.onlostpointercapture=screen.onpointerup=screen.onpointercancel=event=>{if
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}
 addEventListener('resize',resize);resize();
 function clearInputs(){
-  keyboard.clear();touchKeys.clear();drag=null;walkVelocity.set(0,0,0);
+  keyboard.clear();touchKeys.clear();releaseStick();drag=null;walkVelocity.set(0,0,0);
 }
 function held(a,b){
   if(keyboard.has(a)||keyboard.has(b))return 1;
@@ -1751,6 +1821,7 @@ function update(dt){
   }
   const throttle=held('KeyW','ArrowUp')-held('KeyS','ArrowDown');
   const lateral=held('KeyA','ArrowLeft')-held('KeyD','ArrowRight');
+  const steerInput=lateral||-stickX,walkInput=throttle||-stickY;
   poseAvatar(mascot,0,clock,true);
   beacon.material.emissiveIntensity=1.15+Math.sin(clock*2.8)*.4;
   if(mode==='garage')poseAvatar(p,0,clock);
@@ -1769,12 +1840,12 @@ function update(dt){
       transition=null;}
   }
   if(mode==='drive'){
-    const brake=keyboard.has('Space');
+    const brake=held('Space','Space');
     speed+=throttle*(speed*throttle<0?16:throttle>0?9:5)*dt;
     speed*=Math.exp(-dt*(brake?5:throttle?.26:1.6));
     speed=T.MathUtils.clamp(speed,-6,22);
     if(Math.abs(speed)<.045)speed=0;
-    steer=T.MathUtils.damp(steer,lateral*.50,9,dt);
+    steer=T.MathUtils.damp(steer,steerInput*.50,9,dt);
     const pos=v.root.position;
     const heading=v.root.rotation.y+steer*speed*dt*.46;
     const nx=pos.x-Math.sin(heading)*speed*dt,nz=pos.z-Math.cos(heading)*speed*dt;
@@ -1795,7 +1866,7 @@ function update(dt){
       wheel.rolling.rotation.x-=speed*dt/.34;
     }
   }
-  if(mode==='walk'&&!chatOpen&&presentation?.kind!=='room')updateWalking(p,throttle,lateral,dt);
+  if(mode==='walk'&&!chatOpen&&presentation?.kind!=='room')updateWalking(p,walkInput,steerInput,dt);
   updateZeca(dt);
 }
 function updateWalking(model,forward,lateral,dt){
@@ -1805,7 +1876,7 @@ function updateWalking(model,forward,lateral,dt){
   const position=model.root.position;
   walkTarget.set(-lateral,0,-forward);
   const hasInput=!activePanel&&walkTarget.lengthSq()>0;
-  if(hasInput)walkTarget.normalize().multiplyScalar(walkSpeed).applyAxisAngle(up,yaw);
+  if(hasInput)walkTarget.clampLength(0,1).multiplyScalar(walkSpeed).applyAxisAngle(up,yaw);
   else walkTarget.set(0,0,0);
   if(activePanel)walkVelocity.set(0,0,0);
   else walkVelocity.lerp(walkTarget,1-Math.exp(-dt*(hasInput?12:14)));
@@ -1949,11 +2020,15 @@ function view(dt){
   camera.lookAt(cameraAim);
   if(mode==='drive'&&!cockpit&&cinematicAllowed()&&driveView!=='vista')camera.rotateZ(steer*Math.min(Math.abs(speed)/22,1)*.055*(cinemaIntensity==='soft'?.5:1));
   const baseFov=mode==='drive'&&driveView==='vista'?64:mode==='drive'&&driveView==='body'?54:58;
-  const fov=cockpit?69:baseFov+Math.min(Math.abs(speed)/22,1)*(cinematicAllowed()?7:0);
+  const portraitWiden=camera.aspect<.76?(1-camera.aspect/.76)*21:0;
+  const fov=(cockpit?69:baseFov+Math.min(Math.abs(speed)/22,1)*(cinematicAllowed()?7:0))+portraitWiden;
   camera.fov=T.MathUtils.damp(camera.fov,fov,6,dt);
   camera.updateProjectionMatrix();
 }
 function display(){
+  const canMove=!chatOpen&&!cinematic&&!activePanel&&intro===null&&!presentation&&(mode==='drive'||mode==='walk');
+  touchPanel.hidden=!canMove;touchPanel.dataset.mode=mode;
+  mapToggle.hidden=inLab||mode==='garage'||intro!==null||!!cinematic;
   if(chatOpen||mode==='garage'||cinematic||intro!==null||presentation?.kind==='room'){el('interaction').hidden=true;return}
   const position=mode==='walk'?player().root.position:car().root.position;
   const orientation=mode==='walk'?player().root.rotation.y:car().root.rotation.y;
@@ -1971,7 +2046,8 @@ function display(){
   }
   el('interaction').hidden=!prompt;
   interaction.disabled=!prompt.startsWith('E');
-  if(interaction.textContent!==prompt)interaction.textContent=prompt;
+  const labelPrompt=coarse||innerWidth<=700?prompt.replace(/^E · /,''):prompt;
+  if(interaction.textContent!==labelPrompt)interaction.textContent=labelPrompt;
   const label=mode==='drive'?Math.round(Math.abs(speed)*3.6)+' km/h · '+({inside:'cabine',chase:'câmera externa',body:'carroceria',vista:'panorâmica'}[driveView]):mode==='walk'?'A pé':'Porta do veículo';
   const district=districts.find(d=>Math.hypot(position.x-d.x,position.z-d.z)<8);
   const status=inLab?activeInterior.title+' · '+label:label+' · '+(district?.name??'Distrito dos Projetos');
@@ -1979,7 +2055,7 @@ function display(){
 }
 
 const prefersLess=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-const coarse=typeof matchMedia==='function'&&matchMedia('(pointer: coarse)').matches;
+const coarse=typeof matchMedia==='function'&&matchMedia('(any-pointer: coarse)').matches;
 const settings=el('settings'),direct=el('direct');
 const lighting={
   day:{top:[.20,.46,.69],horizon:[.74,.82,.85],sun:3.1,sky:2,light:0xffe3bb,fill:0xe1efff,night:0},
@@ -2349,6 +2425,7 @@ function openDialog(dialog){
 el('pause-toggle').onclick=()=>openDialog(settings);
 el('direct-toggle').onclick=()=>openDialog(direct);
 el('resume').onclick=()=>settings.close();
+el('mobile-garage').onclick=()=>{settings.close();if(intro!==null)endIntro();garage()};
 settings.onclose=direct.onclose=()=>{uiPaused=false;keyboard.clear()};
 el('intro-skip').onclick=()=>{endIntro();soundSetup()};
 el('intro-replay').onclick=()=>{
